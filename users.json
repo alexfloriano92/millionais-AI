@@ -1,0 +1,16 @@
+[
+  {
+    "id": "1786446754010",
+    "name": "Alex Floriano",
+    "email": "tiijrc@gmail.com",
+    "password": "$2a$10$sZPeLXEipiKQPbvsKjSm0ODGaX4pQ294i30wXeRKui3FNTCkzMhOi",
+    "createdAt": "2026-08-11T11:12:34.010Z"
+  },
+  {
+    "id": "1786458024399",
+    "name": "Test",
+    "email": "testuser@gmail.com",
+    "password": "$2a$10$qT860PKI8STv5lfRNH281eShBveClmvCA1XHUSTPPtUkhW8QAA9Im",
+    "createdAt": "2026-08-11T14:20:24.399Z"
+  }
+]
