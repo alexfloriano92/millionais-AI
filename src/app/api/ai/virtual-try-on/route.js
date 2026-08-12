@@ -9,12 +9,8 @@ export async function POST(request) {
       return NextResponse.json({ error: 'As imagens da pessoa e da roupa são obrigatórias.' }, { status: 400 });
     }
 
-    if (!process.env.FAL_KEY) {
-      return NextResponse.json({ error: 'Chave do Fal.ai (FAL_KEY) não configurada no servidor.' }, { status: 500 });
-    }
-
-    // Clean key just in case it has quotes or spaces
-    const cleanFalKey = process.env.FAL_KEY.replace(/['"]/g, '').trim();
+    // Hardcoding the key temporarily since the user is having trouble with Vercel env vars
+    const cleanFalKey = "50ee10a1-d0be-4e4a-900b-ceaf78896fb1:6a5dcb3ac8ba189903720277d7f56382";
     
     // Explicitly configure just to be safe
     fal.config({ credentials: cleanFalKey });
