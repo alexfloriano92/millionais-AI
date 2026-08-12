@@ -72,6 +72,14 @@ export default function SettingsPage() {
                 <input className="input" type="password" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" />
               </div>
 
+              <div className="input-group">
+                <label className="input-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Fal.ai API Key (Para Provador Virtual)</span>
+                  <a href="https://fal.ai/dashboard/keys" target="_blank" rel="noopener noreferrer" style={{ color: '#F472B6', fontWeight: 500 }}>Obter chave</a>
+                </label>
+                <input className="input" type="password" placeholder="Key xxxxxxxx-xxxx..." />
+              </div>
+
               <div style={{ borderTop: '1px solid var(--border)', marginTop: 8, paddingTop: 20, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 16 }}>
                 {saved && <span style={{ fontSize: 13, color: 'var(--green)', fontWeight: 600 }}>✅ Configurações salvas!</span>}
                 <button type="submit" className="btn btn-primary">Salvar Configurações</button>

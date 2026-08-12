@@ -198,8 +198,9 @@ export default function ElencoPage() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
-              imageBase64: uploadBase64, 
-              productDesc: prod.name + (prod.description ? ' - ' + prod.description : '') 
+              humanImage: uploadBase64, 
+              garmentImage: prod.image,
+              category: 'upper_body'
             }),
           });
           
@@ -435,7 +436,7 @@ export default function ElencoPage() {
                           {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                         </select>
                         <span style={{ fontSize: 10, color: 'var(--muted)', marginTop: 4, display: 'block' }}>
-                          A IA vai analisar a pessoa na foto e gerar um novo avatar com a mesma aparência vestindo este produto.
+                          O sistema enviará a foto acima e a foto do produto para a IA profissional (Fal.ai IDM-VTON) para realizar a troca de roupa real.
                         </span>
                       </div>
                     )}
