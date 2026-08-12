@@ -1,10 +1,6 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
 // ── Google Translate TTS (Free, no API key needed) ──
 // Splits text into chunks under 200 chars and fetches audio from Google's public TTS endpoint.
 async function generateWithGoogleTTS(text, lang = 'pt-BR') {
@@ -91,6 +87,10 @@ export async function POST(request) {
     }
 
     try {
+      const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+
       const mp3 = await openai.audio.speech.create({
         model: "tts-1",
         voice: voice || "alloy",

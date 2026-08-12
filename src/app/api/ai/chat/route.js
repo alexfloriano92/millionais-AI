@@ -1,9 +1,6 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// Initialize the Gemini API client
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
 export async function POST(request) {
   try {
     const { messages, systemInstruction } = await request.json();
@@ -15,6 +12,8 @@ export async function POST(request) {
     if (!process.env.GEMINI_API_KEY) {
       return NextResponse.json({ error: 'Chave da API do Gemini não configurada' }, { status: 500 });
     }
+
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
     // Configure the model, using gemini-1.5-pro for best chat/reasoning performance
     const model = genAI.getGenerativeModel({ 

@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
 export async function POST(request) {
   try {
     const { url } = await request.json();
@@ -123,6 +121,7 @@ export async function POST(request) {
     // Use Gemini to write a high-converting e-commerce product description based on the title
     if (process.env.GEMINI_API_KEY) {
       try {
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
         const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
         const result = await model.generateContent(
           `Escreva uma descrição atraente de e-commerce (máximo 2 sentenças) para vender o seguinte produto: "${title}". Seja persuasivo e foque nos benefícios. Retorne apenas o texto da descrição.`

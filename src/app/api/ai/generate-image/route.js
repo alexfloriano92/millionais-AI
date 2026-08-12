@@ -1,10 +1,6 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
-// Initialize the OpenAI client with the API key from environment variables
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
 
 // ── Pollinations AI fallback (completely free, no API key) ──
 async function generateWithPollinations(prompt) {
@@ -49,6 +45,10 @@ export async function POST(request) {
     }
 
     try {
+      const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+
       // Call the OpenAI API to generate the image
       const response = await openai.images.generate({
         model: "dall-e-3",
