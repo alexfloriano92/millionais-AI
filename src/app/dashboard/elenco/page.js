@@ -206,6 +206,7 @@ export default function ElencoPage() {
             body: JSON.stringify({ 
               humanImage: uploadBase64, 
               garmentImage: prod.image,
+              garmentDescription: prod.name || 'fashion garment',
               category: 'upper_body'
             }),
           });

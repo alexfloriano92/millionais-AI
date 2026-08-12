@@ -5,7 +5,7 @@ export const maxDuration = 60; // Allow maximum serverless time for HF API
 
 export async function POST(request) {
   try {
-    const { humanImage, garmentImage, category = 'upper_body' } = await request.json();
+    const { humanImage, garmentImage, garmentDescription = 'fashion garment', category = 'upper_body' } = await request.json();
 
     if (!humanImage || !garmentImage) {
       return NextResponse.json({ error: 'As imagens da pessoa e da roupa são obrigatórias.' }, { status: 400 });
@@ -36,9 +36,9 @@ export async function POST(request) {
     const result = await app.predict('/tryon', [
       { background: handle_file(humanBlob), layers: [], composite: null }, // Human
       handle_file(garmentBlob), // Garment
-      'Fashion garment', // description
-      true, // is_checked
-      false, // is_checked_crop
+      garmentDescription, // description used for masking
+      true, // is_checked (auto-masking)
+      true, // is_checked_crop (auto crop and resize to fit model)
       30, // denoise_steps
       42  // seed
     ]);
