@@ -1,12 +1,29 @@
 import fs from 'fs';
 import path from 'path';
 
-const USERS_PATH = path.join(process.cwd(), 'users.json');
-const PRODUCTS_PATH = path.join(process.cwd(), 'products.json');
-const AVATARS_PATH = path.join(process.cwd(), 'avatars.json');
+// On Vercel (serverless), the project directory is read-only.
+// We must use /tmp for writable storage.
+const isVercel = !!process.env.VERCEL;
+const DB_DIR = isVercel ? '/tmp' : process.cwd();
+const SRC_DIR = process.cwd(); // Where initial data files live (bundled with deploy)
+
+const USERS_PATH = path.join(DB_DIR, 'users.json');
+const PRODUCTS_PATH = path.join(DB_DIR, 'products.json');
+const AVATARS_PATH = path.join(DB_DIR, 'avatars.json');
 
 function ensureFile(filePath, defaultData = []) {
   if (!fs.existsSync(filePath)) {
+    // On Vercel, try to copy initial data from the project root first
+    const basename = path.basename(filePath);
+    const srcPath = path.join(SRC_DIR, basename);
+    if (isVercel && fs.existsSync(srcPath)) {
+      try {
+        fs.copyFileSync(srcPath, filePath);
+        return;
+      } catch (e) {
+        // Fall through to create empty file
+      }
+    }
     fs.writeFileSync(filePath, JSON.stringify(defaultData, null, 2));
   }
 }
