@@ -19,6 +19,12 @@ export default function ElencoPage() {
   // Tab 1: AI Prompt
   const [prompt, setPrompt] = useState('');
   
+  // UGC & Fashion model prompt generator states
+  const [products, setProducts] = useState([]);
+  const [selectedProductId, setSelectedProductId] = useState('');
+  const [presetType, setPresetType] = useState('headshot');
+  const [promptGenerating, setPromptGenerating] = useState(false);
+  
   // Tab 2: Upload File
   const [uploadBase64, setUploadBase64] = useState('');
   
@@ -34,8 +40,57 @@ export default function ElencoPage() {
       const parsedUser = JSON.parse(u);
       setUser(parsedUser);
       loadAvatars(parsedUser.id);
+      loadProducts(parsedUser.id);
     }
   }, []);
+
+  const loadProducts = async (userId) => {
+    try {
+      const res = await fetch(`/api/products?userId=${userId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setProducts(data);
+        if (data.length > 0) setSelectedProductId(data[0].id);
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  const generateFashionPrompt = async () => {
+    const prod = products.find(p => p.id === selectedProductId);
+    if (!prod) return;
+    setPromptGenerating(true);
+    setError('');
+
+    const systemPrompt = `Você é um Engenheiro de Prompts especialista em geração de imagens de moda realista (DALL-E 3 / Flux).
+Escreva um prompt em inglês altamente descritivo para gerar uma foto de uma modelo vestindo o seguinte produto:
+Nome do produto: "${prod.name}"
+Nicho: "${prod.niche}"
+Descrição: "${prod.description}"
+
+O prompt deve:
+1. Descrever uma modelo profissional posando em estúdio ou cenário externo natural.
+2. Descrever a modelo usando o produto de forma natural e realista, destacando os detalhes do tecido e estilo.
+3. Ser em inglês.
+4. Retornar APENAS o texto do prompt em inglês, sem aspas, explicações ou notas.`;
+
+    try {
+      const res = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: 'Gere o prompt de imagem.' }],
+          systemInstruction: systemPrompt
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao gerar prompt');
+      setPrompt(data.text);
+    } catch (err) {
+      setError('Erro ao gerar prompt: ' + err.message);
+    } finally {
+      setPromptGenerating(false);
+    }
+  };
 
   const loadAvatars = async (userId) => {
     try {
@@ -74,11 +129,22 @@ export default function ElencoPage() {
     try {
       if (activeTab === 'ai') {
         if (!prompt.trim()) throw new Error('O prompt da IA é obrigatório.');
+
+        // Determine the suffix based on presetType
+        let suffix = '';
+        if (presetType === 'headshot') {
+          suffix = '. Close-up headshot portrait, looking directly at camera, professional photography, studio lighting, clean solid color background';
+        } else if (presetType === 'fullbody') {
+          suffix = '. Full body fashion model photography, showing the complete outfit and styling, looking at camera, realistic, studio lighting, clean solid color background';
+        } else if (presetType === 'mediumshot') {
+          suffix = '. Medium shot fashion modeling portrait, showcasing the clothes, looking at camera, realistic, studio lighting, clean solid color background';
+        }
+
         // Call free AI generator route
         const genRes = await fetch('/api/ai/generate-free-image', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: `${prompt}. Close-up headshot portrait, looking directly at camera, professional photography, studio lighting, clean solid color background` }),
+          body: JSON.stringify({ prompt: `${prompt}${suffix}` }),
         });
         const genData = await genRes.json();
         if (!genRes.ok) throw new Error(genData.error || 'Falha ao gerar com IA Grátis');
@@ -176,19 +242,62 @@ export default function ElencoPage() {
 
             {/* TAB 1: AI GENERATION */}
             {activeTab === 'ai' && (
-              <div className="input-group">
-                <label className="input-label">Descreva a aparência física (IA Ilimitada e Grátis)</label>
-                <textarea 
-                  className="input" 
-                  placeholder="Ex: young smiling woman, light brown hair, wearing a white blazer, looking at camera..." 
-                  value={prompt} 
-                  onChange={e => setPrompt(e.target.value)}
-                  style={{ minHeight: 100 }}
-                />
-                <span style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
-                  Dica: Descreva em inglês para obter rostos melhores e mais realistas.
-                </span>
-              </div>
+              <>
+                {products.length > 0 && (
+                  <div className="input-group">
+                    <label className="input-label">💡 Assistente de Moda UGC (Opcional)</label>
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                      <select 
+                        className="input" 
+                        value={selectedProductId} 
+                        onChange={e => setSelectedProductId(e.target.value)}
+                        style={{ flex: 1 }}
+                      >
+                        {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      </select>
+                      <button 
+                        type="button" 
+                        className="btn btn-secondary btn-sm" 
+                        onClick={generateFashionPrompt} 
+                        disabled={promptGenerating}
+                        style={{ whiteSpace: 'nowrap' }}
+                      >
+                        {promptGenerating ? '...' : '🪄 Criar Prompt'}
+                      </button>
+                    </div>
+                    <span style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+                      Gera um prompt de modelo vestindo e exibindo o produto selecionado.
+                    </span>
+                  </div>
+                )}
+
+                <div className="input-group">
+                  <label className="input-label">Estilo de Enquadramento</label>
+                  <select 
+                    className="input" 
+                    value={presetType} 
+                    onChange={e => setPresetType(e.target.value)}
+                  >
+                    <option value="headshot">👤 Rosto (Close-up Headshot)</option>
+                    <option value="mediumshot">🧍 Meio Corpo (Showcase de Roupa)</option>
+                    <option value="fullbody">💃 Corpo Inteiro (Modelo de Moda)</option>
+                  </select>
+                </div>
+
+                <div className="input-group">
+                  <label className="input-label">Descreva a aparência física (ou use o assistente)</label>
+                  <textarea 
+                    className="input" 
+                    placeholder="Ex: young smiling woman, light brown hair, wearing a white blazer, looking at camera..." 
+                    value={prompt} 
+                    onChange={e => setPrompt(e.target.value)}
+                    style={{ minHeight: 100 }}
+                  />
+                  <span style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+                    Dica: Descreva em inglês para obter imagens melhores e mais realistas.
+                  </span>
+                </div>
+              </>
             )}
 
             {/* TAB 2: UPLOAD IMAGE */}

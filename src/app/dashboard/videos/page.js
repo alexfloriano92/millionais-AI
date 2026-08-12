@@ -39,6 +39,7 @@ export default function VideosPage() {
   const [selectedVoice, setSelectedVoice] = useState('nova');
   const [voiceProvider, setVoiceProvider] = useState('google');
   const [ratio, setRatio] = useState('9:16');
+  const [layoutMode, setLayoutMode] = useState('circle'); // 'circle' or 'fullscreen'
 
   const [loading, setLoading] = useState(false);
   const [scriptGenerating, setScriptGenerating] = useState(false);
@@ -251,6 +252,29 @@ Escreva APENAS o texto que o narrador deve falar. Sem rubricas, instruções ou 
         }
       }
 
+      // ─── FULLSCREEN AVATAR BACKGROUND (UGC / MODA) ───
+      if (layoutMode === 'fullscreen' && avatarImg) {
+        ctx.save();
+        // Draw the avatar covering the entire canvas (aspect fill)
+        const avAspect = avatarImg.width / avatarImg.height;
+        const canvasAspect = W / H;
+        let drawW = W;
+        let drawH = H;
+        let drawX = 0;
+        let drawY = 0;
+
+        if (avAspect > canvasAspect) {
+          drawW = H * avAspect;
+          drawX = (W - drawW) / 2;
+        } else {
+          drawH = W / avAspect;
+          drawY = (H - drawH) / 2;
+        }
+
+        ctx.drawImage(avatarImg, drawX, drawY, drawW, drawH);
+        ctx.restore();
+      }
+
       // ─── GLOW ORB (subtle animated violet glow) ───
       const orbX = W * 0.3 + Math.sin(elapsed * 0.5) * 40;
       const orbY = H * 0.2 + Math.cos(elapsed * 0.3) * 30;
@@ -320,8 +344,8 @@ Escreva APENAS o texto que o narrador deve falar. Sem rubricas, instruções ou 
         }
       }
 
-      // ─── AVATAR ───
-      if (avatarImg) {
+      // ─── AVATAR (CIRCLE MODE ONLY) ───
+      if (avatarImg && layoutMode === 'circle') {
         const avSize = isVertical ? W * 0.55 : H * 0.7;
         const avX = isVertical ? 16 : 20;
         const avY = isVertical ? H - avSize - 60 : H - avSize - 20;
@@ -475,6 +499,13 @@ Escreva APENAS o texto que o narrador deve falar. Sem rubricas, instruções ou 
               <select className="input" value={ratio} onChange={e => setRatio(e.target.value)}>
                 <option value="9:16">📱 Vertical 9:16</option>
                 <option value="16:9">🖥️ Horizontal 16:9</option>
+              </select>
+            </div>
+            <div className="input-group">
+              <label className="input-label">Layout do Vídeo</label>
+              <select className="input" value={layoutMode} onChange={e => setLayoutMode(e.target.value)}>
+                <option value="circle">⭕ Apresentador em Círculo (Padrão)</option>
+                <option value="fullscreen">📺 Modelo Tela Cheia (UGC Moda)</option>
               </select>
             </div>
             <div className="input-group" style={{ gridColumn: '1 / -1' }}>
