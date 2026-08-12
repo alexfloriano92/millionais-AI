@@ -9,8 +9,8 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@fal-ai/client": "^1.10.1",
     "@google/generative-ai": "^0.15.0",
+    "@gradio/client": "^2.4.0",
     "bcryptjs": "^2.4.3",
     "jose": "^5.6.3",
     "lucide-react": "^0.400.0",

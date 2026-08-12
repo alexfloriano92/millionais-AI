@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
-import { fal } from '@fal-ai/client';
+import { client, handle_file } from '@gradio/client';
+
+export const maxDuration = 60; // Allow maximum serverless time for HF API
 
 export async function POST(request) {
   try {
@@ -9,57 +11,52 @@ export async function POST(request) {
       return NextResponse.json({ error: 'As imagens da pessoa e da roupa são obrigatórias.' }, { status: 400 });
     }
 
-    // Hardcoding the key temporarily since the user is having trouble with Vercel env vars
-    const cleanFalKey = "50ee10a1-d0be-4e4e-900b-ceaf78896fb1:6a5dcb3ac8ba189903720277d7f56382";
-    
-    // Explicitly configure just to be safe
-    fal.config({ credentials: cleanFalKey });
-
-    // Helper: convert base64 data URL to a File/Blob and upload via fal SDK
-    async function toPublicUrl(dataUrlOrUrl) {
-      if (!dataUrlOrUrl.startsWith('data:')) return dataUrlOrUrl; // already a URL
-
-      const match = dataUrlOrUrl.match(/^data:([a-zA-Z0-9+/.-]+);base64,(.+)$/);
+    // Helper: convert base64 data URL to a Blob
+    async function toBlob(dataUrl) {
+      if (!dataUrl.startsWith('data:')) {
+        const res = await fetch(dataUrl);
+        return await res.blob();
+      }
+      const match = dataUrl.match(/^data:([a-zA-Z0-9+/.-]+);base64,(.+)$/);
       if (!match) throw new Error('Formato de imagem inválido');
-
       const mimeType = match[1];
-      const ext = mimeType.split('/')[1] || 'png';
-      
-      // Use Buffer in Node.js
       const buffer = Buffer.from(match[2], 'base64');
-      const file = new File([buffer], `image.${ext}`, { type: mimeType });
-
-      const url = await fal.storage.upload(file);
-      return url;
+      return new Blob([buffer], { type: mimeType });
     }
 
-    // Upload images to Fal CDN to get public URLs
-    const [humanImageUrl, garmentImageUrl] = await Promise.all([
-      toPublicUrl(humanImage),
-      toPublicUrl(garmentImage),
+    const [humanBlob, garmentBlob] = await Promise.all([
+      toBlob(humanImage),
+      toBlob(garmentImage),
     ]);
 
-    // Call Fal.ai IDM-VTON
-    const result = await fal.subscribe('fal-ai/idm-vton', {
-      input: {
-        human_image_url: humanImageUrl,
-        garment_image_url: garmentImageUrl,
-        category,
-      },
-    });
+    // Conectar ao modelo gratuito da Hugging Face
+    const app = await client('yisol/IDM-VTON');
+    
+    // Executar a IA (pode levar alguns minutos dependendo da fila)
+    const result = await app.predict('/tryon', [
+      { background: handle_file(humanBlob), layers: [], composite: null }, // Human
+      handle_file(garmentBlob), // Garment
+      'Fashion garment', // description
+      true, // is_checked
+      false, // is_checked_crop
+      30, // denoise_steps
+      42  // seed
+    ]);
 
-    const resultUrl = result?.data?.image?.url || result?.data?.images?.[0]?.url;
+    // O retorno da API do Gradio geralmente coloca o output no array data
+    const resultUrl = result?.data?.[0]?.url || result?.data?.[0]?.path;
+    
     if (!resultUrl) {
-      console.error('Unexpected Fal.ai response:', JSON.stringify(result));
-      throw new Error('Formato de resposta inesperado do Fal.ai');
+      console.error('Unexpected Gradio response:', JSON.stringify(result));
+      throw new Error('Falha ao receber a imagem do servidor gratuito.');
     }
 
     return NextResponse.json({ url: resultUrl });
 
   } catch (error) {
-    console.error('Erro no Virtual Try-On (Fal.ai):', error);
+    console.error('Erro no Virtual Try-On (Gradio):', error);
     return NextResponse.json(
-      { error: error.message || 'Erro ao processar provador virtual' },
+      { error: error.message || 'Erro ao processar provador virtual gratuito' },
       { status: 500 }
     );
   }
