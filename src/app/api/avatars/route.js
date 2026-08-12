@@ -39,3 +39,27 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Erro ao salvar avatar' }, { status: 500 });
   }
 }
+
+export async function DELETE(request) {
+  try {
+    const { id, userId } = await request.json();
+    if (!id || !userId) {
+      return NextResponse.json({ error: 'ID e userId são obrigatórios' }, { status: 400 });
+    }
+
+    let allAvatars = readAllAvatars();
+    const initialLength = allAvatars.length;
+    
+    // Filter out the avatar to delete
+    allAvatars = allAvatars.filter(avatar => !(avatar.id === id && avatar.userId === userId));
+
+    if (allAvatars.length === initialLength) {
+      return NextResponse.json({ error: 'Avatar não encontrado ou sem permissão' }, { status: 404 });
+    }
+
+    writeAvatars(allAvatars);
+    return NextResponse.json({ success: true });
+  } catch (e) {
+    return NextResponse.json({ error: 'Erro ao excluir avatar' }, { status: 500 });
+  }
+}

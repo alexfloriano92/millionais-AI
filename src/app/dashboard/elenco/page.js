@@ -25,8 +25,10 @@ export default function ElencoPage() {
   const [presetType, setPresetType] = useState('fullbody');
   const [appearanceStyle, setAppearanceStyle] = useState('auto');
   
-  // Tab 2: Upload File
+  // Tab 2: Upload File & Virtual Try On
   const [uploadBase64, setUploadBase64] = useState('');
+  const [useVirtualTryOn, setUseVirtualTryOn] = useState(false);
+  const [vtonProductId, setVtonProductId] = useState('');
   
   // Tab 3: Paste Link
   const [pastedLink, setPastedLink] = useState('');
@@ -187,7 +189,26 @@ export default function ElencoPage() {
 
       } else if (activeTab === 'upload') {
         if (!uploadBase64) throw new Error('Escolha um arquivo de imagem para fazer upload.');
-        finalImageUrl = uploadBase64;
+        
+        if (useVirtualTryOn && vtonProductId) {
+          const prod = products.find(p => p.id === vtonProductId);
+          if (!prod) throw new Error('Produto selecionado não encontrado.');
+          
+          const vtonRes = await fetch('/api/ai/virtual-try-on', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              imageBase64: uploadBase64, 
+              productDesc: prod.name + (prod.description ? ' - ' + prod.description : '') 
+            }),
+          });
+          
+          const vtonData = await vtonRes.json();
+          if (!vtonRes.ok) throw new Error(vtonData.error || 'Falha ao processar Provador Virtual');
+          finalImageUrl = vtonData.url;
+        } else {
+          finalImageUrl = uploadBase64;
+        }
 
       } else if (activeTab === 'link') {
         if (!pastedLink.trim()) throw new Error('Cole uma URL de imagem válida.');
@@ -223,6 +244,29 @@ export default function ElencoPage() {
       setError(err.message);
     } finally {
       setProcessing(false);
+    }
+  };
+
+  const handleDeleteAvatar = async (avatarId) => {
+    if (!user) return;
+    if (!window.confirm('Tem certeza que deseja excluir este avatar?')) return;
+    
+    try {
+      const res = await fetch('/api/avatars', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: avatarId, userId: user.id })
+      });
+      
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Erro ao excluir avatar');
+      }
+      
+      // Update local state
+      setAvatars(prev => prev.filter(av => av.id !== avatarId));
+    } catch (err) {
+      alert(err.message);
     }
   };
 
@@ -348,22 +392,56 @@ export default function ElencoPage() {
               </>
             )}
 
-            {/* TAB 2: UPLOAD IMAGE */}
+            {/* TAB 2: UPLOAD IMAGE & VIRTUAL TRY ON */}
             {activeTab === 'upload' && (
-              <div className="input-group">
-                <label className="input-label">Selecionar Foto</label>
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  onChange={handleImageUpload} 
-                  style={{ fontSize: 12, color: 'var(--muted)' }} 
-                />
-                {uploadBase64 && (
-                  <div style={{ marginTop: 12, height: 100, width: 100, borderRadius: '50%', overflow: 'hidden', border: '2px solid var(--border2)', alignSelf: 'center' }}>
-                    <img src={uploadBase64} alt="Upload preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <>
+                <div className="input-group">
+                  <label className="input-label">Selecionar Foto</label>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={handleImageUpload} 
+                    style={{ fontSize: 12, color: 'var(--muted)' }} 
+                  />
+                  {uploadBase64 && (
+                    <div style={{ marginTop: 12, height: 100, width: 100, borderRadius: '50%', overflow: 'hidden', border: '2px solid var(--border2)', alignSelf: 'center' }}>
+                      <img src={uploadBase64} alt="Upload preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    </div>
+                  )}
+                </div>
+
+                {uploadBase64 && products.length > 0 && (
+                  <div className="card" style={{ background: 'var(--raised)', padding: 12, marginBottom: 16 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={useVirtualTryOn} 
+                        onChange={e => {
+                          setUseVirtualTryOn(e.target.checked);
+                          if (e.target.checked && !vtonProductId) setVtonProductId(products[0].id);
+                        }}
+                      />
+                      ✨ Usar Provador Virtual (IA Grátis)
+                    </label>
+                    
+                    {useVirtualTryOn && (
+                      <div style={{ marginTop: 12 }}>
+                        <label className="input-label" style={{ fontSize: 11 }}>Selecione o produto para vestir na foto:</label>
+                        <select 
+                          className="input" 
+                          value={vtonProductId} 
+                          onChange={e => setVtonProductId(e.target.value)}
+                        >
+                          {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        </select>
+                        <span style={{ fontSize: 10, color: 'var(--muted)', marginTop: 4, display: 'block' }}>
+                          A IA vai analisar a pessoa na foto e gerar um novo avatar com a mesma aparência vestindo este produto.
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
-              </div>
+              </>
             )}
 
             {/* TAB 3: IMAGE LINK */}
@@ -416,7 +494,24 @@ export default function ElencoPage() {
           ) : (
             <div className="grid-3">
               {avatars.map(av => (
-                <div key={av.id} className="card" style={{ textAlign: 'center', padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <div key={av.id} className="card" style={{ position: 'relative', textAlign: 'center', padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  {!av.isDefault && (
+                    <button
+                      onClick={() => handleDeleteAvatar(av.id)}
+                      style={{
+                        position: 'absolute', top: 12, right: 12,
+                        background: 'rgba(239, 68, 68, 0.1)', color: 'var(--red)',
+                        border: 'none', borderRadius: '50%', width: 28, height: 28,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        cursor: 'pointer', transition: '0.2s'
+                      }}
+                      title="Excluir avatar"
+                      onMouseOver={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'}
+                      onMouseOut={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
+                    >
+                      🗑️
+                    </button>
+                  )}
                   <div style={{ width: 90, height: 90, borderRadius: '50%', overflow: 'hidden', border: '2px solid var(--border2)', marginBottom: 12, background: 'var(--raised)' }}>
                     <img src={av.image} alt={av.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   </div>
