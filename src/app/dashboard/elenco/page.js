@@ -22,8 +22,8 @@ export default function ElencoPage() {
   // UGC & Fashion model prompt generator states
   const [products, setProducts] = useState([]);
   const [selectedProductId, setSelectedProductId] = useState('');
-  const [presetType, setPresetType] = useState('headshot');
-  const [promptGenerating, setPromptGenerating] = useState(false);
+  const [presetType, setPresetType] = useState('fullbody');
+  const [appearanceStyle, setAppearanceStyle] = useState('auto');
   
   // Tab 2: Upload File
   const [uploadBase64, setUploadBase64] = useState('');
@@ -55,41 +55,76 @@ export default function ElencoPage() {
     } catch (e) { console.error(e); }
   };
 
-  const generateFashionPrompt = async () => {
+  // ── Appearance presets (beauty standards commonly used in UGC/fashion) ──
+  const APPEARANCE_PRESETS = [
+    { id: 'auto', label: '🎲 Aleatório (Padrão)', descriptions: [
+      'beautiful young woman, light skin, long brown hair, subtle makeup, warm smile',
+      'attractive young woman, olive skin, dark wavy hair, natural makeup, confident expression',
+      'stunning young woman, tan skin, straight black hair, elegant look, soft smile',
+      'gorgeous young woman, fair skin, blonde highlights, light makeup, friendly expression',
+      'beautiful young woman, medium skin, auburn curly hair, glowing skin, bright smile',
+    ]},
+    { id: 'latina', label: '🌺 Latina', descriptions: [
+      'beautiful young latina woman, tan skin, long dark wavy hair, natural makeup, warm radiant smile',
+      'attractive latina model, olive skin, brown eyes, dark flowing hair, confident elegant pose',
+    ]},
+    { id: 'european', label: '🌸 Europeia', descriptions: [
+      'beautiful young european woman, fair skin, light brown hair, blue eyes, subtle elegant makeup, soft smile',
+      'stunning european model, porcelain skin, blonde hair, green eyes, natural beauty, gentle expression',
+    ]},
+    { id: 'african', label: '✨ Africana', descriptions: [
+      'beautiful young black woman, dark skin, natural curly hair, glowing complexion, radiant confident smile',
+      'stunning african model, rich dark skin, short natural hair, bold elegant look, warm expression',
+    ]},
+    { id: 'asian', label: '🌷 Asiática', descriptions: [
+      'beautiful young asian woman, fair skin, straight black hair, minimal makeup, graceful soft smile',
+      'attractive asian model, light skin, dark silky hair, elegant natural beauty, serene expression',
+    ]},
+    { id: 'masculine', label: '🧔 Masculino', descriptions: [
+      'handsome young man, medium skin, short dark hair, well-groomed, confident charming smile',
+      'attractive male model, light skin, styled brown hair, clean shaven, professional look',
+    ]},
+  ];
+
+  const generateFashionPrompt = () => {
     const prod = products.find(p => p.id === selectedProductId);
     if (!prod) return;
-    setPromptGenerating(true);
     setError('');
 
-    const systemPrompt = `Você é um Engenheiro de Prompts especialista em geração de imagens de moda realista (DALL-E 3 / Flux).
-Escreva um prompt em inglês altamente descritivo para gerar uma foto de uma modelo vestindo o seguinte produto:
-Nome do produto: "${prod.name}"
-Nicho: "${prod.niche}"
-Descrição: "${prod.description}"
+    // Pick appearance
+    const preset = APPEARANCE_PRESETS.find(a => a.id === appearanceStyle) || APPEARANCE_PRESETS[0];
+    const descriptions = preset.descriptions;
+    const appearance = descriptions[Math.floor(Math.random() * descriptions.length)];
 
-O prompt deve:
-1. Descrever uma modelo profissional posando em estúdio ou cenário externo natural.
-2. Descrever a modelo usando o produto de forma natural e realista, destacando os detalhes do tecido e estilo.
-3. Ser em inglês.
-4. Retornar APENAS o texto do prompt em inglês, sem aspas, explicações ou notas.`;
+    // Build product description
+    const productDesc = prod.name || 'stylish clothing piece';
 
-    try {
-      const res = await fetch('/api/ai/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [{ role: 'user', content: 'Gere o prompt de imagem.' }],
-          systemInstruction: systemPrompt
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Erro ao gerar prompt');
-      setPrompt(data.text);
-    } catch (err) {
-      setError('Erro ao gerar prompt: ' + err.message);
-    } finally {
-      setPromptGenerating(false);
+    // Framing
+    let framing = '';
+    if (presetType === 'headshot') {
+      framing = 'close-up headshot portrait, shoulders visible';
+    } else if (presetType === 'mediumshot') {
+      framing = 'medium shot from waist up, showcasing the outfit and styling';
+    } else {
+      framing = 'full body shot, showing the complete outfit from head to toe, natural standing pose';
     }
+
+    // Randomize pose and setting
+    const poses = [
+      'posing naturally', 'standing with one hand on hip', 'walking confidently',
+      'slight turn showing the outfit details', 'casual relaxed pose', 'elegant standing pose'
+    ];
+    const settings = [
+      'modern minimalist studio with soft lighting', 'clean white studio background',
+      'urban lifestyle setting with blurred city background', 'bright airy studio with natural window light',
+      'neutral beige studio with warm soft lighting'
+    ];
+    const pose = poses[Math.floor(Math.random() * poses.length)];
+    const setting = settings[Math.floor(Math.random() * settings.length)];
+
+    const generatedPrompt = `${appearance}, wearing ${productDesc}, ${pose}, ${framing}, ${setting}, professional fashion photography, realistic, high quality, 8k, sharp focus`;
+
+    setPrompt(generatedPrompt);
   };
 
   const loadAvatars = async (userId) => {
@@ -128,7 +163,7 @@ O prompt deve:
 
     try {
       if (activeTab === 'ai') {
-        if (!prompt.trim()) throw new Error('O prompt da IA é obrigatório.');
+        if (!prompt.trim()) throw new Error('Clique em "🪄 Criar Prompt" ou descreva a aparência manualmente.');
 
         // Determine the suffix based on presetType
         let suffix = '';
@@ -243,34 +278,19 @@ O prompt deve:
             {/* TAB 1: AI GENERATION */}
             {activeTab === 'ai' && (
               <>
-                {products.length > 0 && (
-                  <div className="input-group">
-                    <label className="input-label">💡 Assistente de Moda UGC (Opcional)</label>
-                    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                      <select 
-                        className="input" 
-                        value={selectedProductId} 
-                        onChange={e => setSelectedProductId(e.target.value)}
-                        style={{ flex: 1 }}
-                      >
-                        {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                      </select>
-                      <button 
-                        type="button" 
-                        className="btn btn-secondary btn-sm" 
-                        onClick={generateFashionPrompt} 
-                        disabled={promptGenerating}
-                        style={{ whiteSpace: 'nowrap' }}
-                      >
-                        {promptGenerating ? '...' : '🪄 Criar Prompt'}
-                      </button>
-                    </div>
-                    <span style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
-                      Gera um prompt de modelo vestindo e exibindo o produto selecionado.
-                    </span>
-                  </div>
-                )}
+                {/* Appearance Style Preset */}
+                <div className="input-group">
+                  <label className="input-label">Aparência da Modelo</label>
+                  <select 
+                    className="input" 
+                    value={appearanceStyle} 
+                    onChange={e => setAppearanceStyle(e.target.value)}
+                  >
+                    {APPEARANCE_PRESETS.map(a => <option key={a.id} value={a.id}>{a.label}</option>)}
+                  </select>
+                </div>
 
+                {/* Framing Preset */}
                 <div className="input-group">
                   <label className="input-label">Estilo de Enquadramento</label>
                   <select 
@@ -284,17 +304,45 @@ O prompt deve:
                   </select>
                 </div>
 
+                {/* Product-based prompt generator */}
+                {products.length > 0 && (
+                  <div className="input-group">
+                    <label className="input-label">👗 Produto para Exibir (Opcional)</label>
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                      <select 
+                        className="input" 
+                        value={selectedProductId} 
+                        onChange={e => setSelectedProductId(e.target.value)}
+                        style={{ flex: 1 }}
+                      >
+                        {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      </select>
+                      <button 
+                        type="button" 
+                        className="btn btn-secondary btn-sm" 
+                        onClick={generateFashionPrompt}
+                        style={{ whiteSpace: 'nowrap' }}
+                      >
+                        🪄 Criar Prompt
+                      </button>
+                    </div>
+                    <span style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+                      Gera automaticamente um prompt profissional de moda com base no produto, aparência e enquadramento.
+                    </span>
+                  </div>
+                )}
+
                 <div className="input-group">
-                  <label className="input-label">Descreva a aparência física (ou use o assistente)</label>
+                  <label className="input-label">Prompt Final (editável)</label>
                   <textarea 
                     className="input" 
-                    placeholder="Ex: young smiling woman, light brown hair, wearing a white blazer, looking at camera..." 
+                    placeholder="Clique em 'Criar Prompt' acima ou descreva manualmente..." 
                     value={prompt} 
                     onChange={e => setPrompt(e.target.value)}
                     style={{ minHeight: 100 }}
                   />
                   <span style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
-                    Dica: Descreva em inglês para obter imagens melhores e mais realistas.
+                    Dica: Descreva em inglês para obter imagens melhores e mais realistas. O prompt acima é 100% editável.
                   </span>
                 </div>
               </>
