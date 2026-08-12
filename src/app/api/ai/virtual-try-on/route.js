@@ -13,8 +13,11 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Chave do Fal.ai (FAL_KEY) não configurada no servidor.' }, { status: 500 });
     }
 
-    // Configure fal client with API key
-    fal.config({ credentials: process.env.FAL_KEY });
+    // Clean key just in case it has quotes or spaces
+    const cleanFalKey = process.env.FAL_KEY.replace(/['"]/g, '').trim();
+    
+    // Explicitly configure just to be safe
+    fal.config({ credentials: cleanFalKey });
 
     // Helper: convert base64 data URL to a File/Blob and upload via fal SDK
     async function toPublicUrl(dataUrlOrUrl) {
@@ -24,12 +27,11 @@ export async function POST(request) {
       if (!match) throw new Error('Formato de imagem inválido');
 
       const mimeType = match[1];
-      const ext = mimeType.split('/')[1] || 'jpg';
-      const binaryStr = atob(match[2]);
-      const bytes = new Uint8Array(binaryStr.length);
-      for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
-      const blob = new Blob([bytes], { type: mimeType });
-      const file = new File([blob], `image.${ext}`, { type: mimeType });
+      const ext = mimeType.split('/')[1] || 'png';
+      
+      // Use Buffer in Node.js
+      const buffer = Buffer.from(match[2], 'base64');
+      const file = new File([buffer], `image.${ext}`, { type: mimeType });
 
       const url = await fal.storage.upload(file);
       return url;
