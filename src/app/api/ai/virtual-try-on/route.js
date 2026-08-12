@@ -10,33 +10,28 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Imagem e produto são obrigatórios' }, { status: 400 });
     }
 
-    if (!process.env.GEMINI_API_KEY) {
-      return NextResponse.json({ error: 'Chave do Gemini (GEMINI_API_KEY) não configurada.' }, { status: 500 });
-    }
+    let personDescription = "beautiful fashion model";
 
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    
-    // 1. Describe the person using Gemini Vision
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    
-    // Extract base64 data
-    const base64Data = imageBase64.split(',')[1];
-    const mimeType = imageBase64.match(/data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+).*,.*/)[1];
+    if (process.env.GEMINI_API_KEY) {
+      try {
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        
+        const base64Data = imageBase64.split(',')[1];
+        const mimeType = imageBase64.match(/data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+).*,.*/)[1];
 
-    const imageParts = [
-      {
-        inlineData: {
-          data: base64Data,
-          mimeType
-        }
+        const imageParts = [{ inlineData: { data: base64Data, mimeType } }];
+        const prompt = `Analyze this person's physical appearance. Write a highly detailed physical description in English for an image generation prompt. Include gender, approximate age, skin tone, facial features, hair style/color, and overall vibe. Do NOT describe the clothes or background. Return ONLY the physical description text.`;
+
+        const result = await model.generateContent([prompt, ...imageParts]);
+        const response = await result.response;
+        personDescription = response.text().trim();
+      } catch (geminiError) {
+        console.error("Erro no Gemini Vision, usando fallback genérico:", geminiError);
       }
-    ];
-
-    const prompt = `Analyze this person's physical appearance. Write a highly detailed physical description in English for an image generation prompt. Include gender, approximate age, skin tone, facial features, hair style/color, and overall vibe. Do NOT describe the clothes or background. Return ONLY the physical description text.`;
-
-    const result = await model.generateContent([prompt, ...imageParts]);
-    const response = await result.response;
-    const personDescription = response.text().trim();
+    } else {
+      console.warn("GEMINI_API_KEY não configurada. Usando fallback para Virtual Try-On.");
+    }
 
     // 2. Generate the final image using Pollinations with the person description + product
     const finalPrompt = `${personDescription}, wearing ${productDesc}, full body fashion photography, realistic, high quality, 8k, sharp focus, modern clean background`;
