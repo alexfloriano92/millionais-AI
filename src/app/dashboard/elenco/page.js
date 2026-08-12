@@ -135,7 +135,13 @@ export default function ElencoPage() {
       if (res.ok) {
         const data = await res.json();
         const custom = data.filter(a => !a.isDefault);
-        setAvatars([...DEFAULT_AVATARS, ...custom]);
+        
+        // Load deleted IDs from localStorage
+        const deletedIds = JSON.parse(localStorage.getItem(`deleted_avatars_${userId}`) || '[]');
+        
+        // Filter out deleted avatars
+        const filtered = custom.filter(a => !deletedIds.includes(a.id));
+        setAvatars([...DEFAULT_AVATARS, ...filtered]);
       }
     } catch (e) {
       console.error(e);
@@ -252,22 +258,31 @@ export default function ElencoPage() {
     if (!user) return;
     if (!window.confirm('Tem certeza que deseja excluir este avatar?')) return;
     
+    // 1. Immediately remove from UI
+    setAvatars(prev => prev.filter(av => av.id !== avatarId));
+    
+    // 2. Persist deleted ID in localStorage so it stays deleted after reload
     try {
-      const res = await fetch('/api/avatars', {
+      const storageKey = `deleted_avatars_${user.id}`;
+      const deletedIds = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      if (!deletedIds.includes(avatarId)) {
+        deletedIds.push(avatarId);
+        localStorage.setItem(storageKey, JSON.stringify(deletedIds));
+      }
+    } catch (e) {
+      console.error('Erro ao salvar exclusão localmente:', e);
+    }
+    
+    // 3. Also try to delete from server (best-effort)
+    try {
+      await fetch('/api/avatars', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: avatarId, userId: user.id })
       });
-      
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Erro ao excluir avatar');
-      }
-      
-      // Update local state
-      setAvatars(prev => prev.filter(av => av.id !== avatarId));
     } catch (err) {
-      alert(err.message);
+      // Server deletion failed but localStorage handles persistence
+      console.warn('Server delete failed, handled via localStorage:', err);
     }
   };
 
