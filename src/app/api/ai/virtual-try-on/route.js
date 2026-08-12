@@ -10,7 +10,7 @@ export async function POST(request) {
     }
 
     // Hardcoding the key temporarily since the user is having trouble with Vercel env vars
-    const cleanFalKey = "50ee10a1-d0be-4e4a-900b-ceaf78896fb1:6a5dcb3ac8ba189903720277d7f56382";
+    const cleanFalKey = "50ee10a1-d0be-4e4e-900b-ceaf78896fb1:6a5dcb3ac8ba189903720277d7f56382";
     
     // Explicitly configure just to be safe
     fal.config({ credentials: cleanFalKey });
